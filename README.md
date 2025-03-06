@@ -75,6 +75,10 @@ dev-setup负责初始化环境，dotfiles负责个性化配置，两者分工明
 ### Mac系统
 
 ```bash
+# 方法1: 一键安装（适用于新Mac或未安装git的系统）
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/zhiyue/dev-setup/main/mac/bootstrap.sh)"
+
+# 方法2: 通过git安装
 # 克隆仓库
 git clone https://github.com/zhiyue/dev-setup.git
 cd dev-setup/mac
