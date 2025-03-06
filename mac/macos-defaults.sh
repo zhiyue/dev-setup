@@ -121,11 +121,22 @@ set_default() {
 
 # 请求确认
 confirm() {
-    if $SKIP_CONFIRMATION || $AUTO_APPLY_SETTINGS; then
-        return 0
+    local message=$1
+    local is_restart_confirm=${2:-false}  # 新参数，默认为false
+    
+    # 对于应用重启确认，AUTO_APPLY_SETTINGS不应该跳过
+    if [[ "$is_restart_confirm" == "true" ]]; then
+        # 应用重启确认只有在SKIP_CONFIRMATION为true时才跳过
+        if $SKIP_CONFIRMATION; then
+            return 0
+        fi
+    else
+        # 对于其他设置确认，AUTO_APPLY_SETTINGS和SKIP_CONFIRMATION都会跳过
+        if $SKIP_CONFIRMATION || $AUTO_APPLY_SETTINGS; then
+            return 0
+        fi
     fi
     
-    local message=$1
     read -p "$message [y/N] " response
     case "$response" in
         [yY][eE][sS]|[yY]) 
@@ -368,8 +379,17 @@ fi
 show_section "应用变更"
 
 # 应用重启确认不受AUTO_APPLY_SETTINGS影响，只有SKIP_CONFIRMATION才会跳过
-if ! $SKIP_CONFIRMATION; then
-    if confirm "是否立即重启受影响的应用程序?"; then
+if $SKIP_CONFIRMATION; then
+    # 如果设置了完全跳过确认，则自动重启应用
+    echo "自动重启受影响的应用程序..."
+    for app in "Dock" "Finder" "Safari" "SystemUIServer" "Terminal" "iTerm" "iTerm2"; do
+        killall "${app}" &> /dev/null || true
+    done
+    echo "已重启受影响的应用程序"
+else
+    # 无论是否使用--auto-apply，都会显示应用重启确认
+    if confirm "是否立即重启受影响的应用程序?" true; then
+        echo "重启受影响的应用程序..."
         for app in "Dock" "Finder" "Safari" "SystemUIServer" "Terminal" "iTerm" "iTerm2"; do
             killall "${app}" &> /dev/null || true
         done
@@ -377,12 +397,6 @@ if ! $SKIP_CONFIRMATION; then
     else
         echo "设置已应用，但需要重启应用或系统才能完全生效"
     fi
-else
-    # 如果设置了完全跳过确认，则自动重启应用
-    echo "自动重启受影响的应用程序..."
-    for app in "Dock" "Finder" "Safari" "SystemUIServer" "Terminal" "iTerm" "iTerm2"; do
-        killall "${app}" &> /dev/null || true
-    done
 fi
 
 echo "===== macOS系统设置配置完成 ====="
