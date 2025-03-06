@@ -10,7 +10,8 @@ REPO_ROOT="${SCRIPT_DIR%/*}"
 LOG_DIR="$HOME/.dev_env_setup_logs"
 MAIN_LOG="$LOG_DIR/setup_$(date +%Y%m%d%H%M%S).log"
 CONFIG_FILE="${REPO_ROOT}/config.yml"
-STATUS_FILE="$LOG_DIR/setup_status.json"
+STATUS_DIR="$LOG_DIR/status"
+STATUS_FILE="$STATUS_DIR/current_status"
 TIMESTAMP="$(date +%Y%m%d%H%M%S)"
 
 # 可配置选项
@@ -25,23 +26,9 @@ SKIP_CONFIRMATION=false
 SKIP_ENV_CHECK=false
 RESUME_MODE=false
 
-# 确保jq可用（用于JSON处理）
-ensure_jq() {
-    if ! command -v jq &> /dev/null; then
-        echo "检测到缺少必要工具 jq，尝试安装..."
-        if command -v brew &> /dev/null; then
-            brew install jq
-        elif command -v apt-get &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y jq
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y jq
-        else
-            echo "警告: 无法自动安装 jq，将使用备用方法处理状态文件"
-            return 1
-        fi
-    fi
-    return 0
-}
+# 用户选择的参数
+BREW_PARAMS=""
+MACOS_PARAMS=""
 
 # 支持命令行参数
 while [[ "$#" -gt 0 ]]; do
@@ -74,49 +61,39 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         --resume)
             RESUME_MODE=true
-            if [[ -f "$STATUS_FILE" ]]; then
+            if [[ -d "$STATUS_DIR" ]]; then
                 echo "正在从上次中断的位置继续安装..."
                 
-                # 尝试使用jq解析JSON状态文件
-                if ensure_jq; then
-                    # 加载各个模块的安装状态
-                    INSTALL_XCODE=$(jq -r '.steps.xcode.completed // "false"' "$STATUS_FILE")
-                    INSTALL_HOMEBREW=$(jq -r '.steps.homebrew.completed // "false"' "$STATUS_FILE")
-                    INSTALL_DEVTOOLS=$(jq -r '.steps.devtools.completed // "false"' "$STATUS_FILE")
-                    CONFIGURE_MACOS=$(jq -r '.steps.macos.completed // "false"' "$STATUS_FILE")
-                    CONFIGURE_GIT=$(jq -r '.steps.git.completed // "false"' "$STATUS_FILE")
-                    INSTALL_VSCODE_EXT=$(jq -r '.steps.vscode.completed // "false"' "$STATUS_FILE")
-                    
-                    # 加载用户定制选项
-                    local brew_params=$(jq -r '.user_choices.brew_params // ""' "$STATUS_FILE")
-                    local macos_params=$(jq -r '.user_choices.macos_params // ""' "$STATUS_FILE")
-                    
-                    # 显示恢复信息
-                    local last_step=$(jq -r '.last_completed_step // "none"' "$STATUS_FILE")
-                    local timestamp=$(jq -r '.last_update_time // "unknown"' "$STATUS_FILE")
-                    echo "上次安装于 $timestamp 中断在步骤: $last_step"
-                    
-                    # 转换布尔值：如果已完成（true），则将安装标志设为false跳过该步骤
-                    [[ "$INSTALL_XCODE" == "true" ]] && INSTALL_XCODE=false
-                    [[ "$INSTALL_HOMEBREW" == "true" ]] && INSTALL_HOMEBREW=false
-                    [[ "$INSTALL_DEVTOOLS" == "true" ]] && INSTALL_DEVTOOLS=false
-                    [[ "$CONFIGURE_MACOS" == "true" ]] && CONFIGURE_MACOS=false
-                    [[ "$CONFIGURE_GIT" == "true" ]] && CONFIGURE_GIT=false
-                    [[ "$INSTALL_VSCODE_EXT" == "true" ]] && INSTALL_VSCODE_EXT=false
-                    
-                    echo "将继续以下未完成的步骤:"
-                    $INSTALL_XCODE && echo "- 安装Xcode命令行工具"
-                    $INSTALL_HOMEBREW && echo "- 安装Homebrew包管理器"
-                    $INSTALL_DEVTOOLS && echo "- 安装开发工具和应用程序"
-                    $CONFIGURE_MACOS && echo "- 配置macOS系统设置"
-                    $CONFIGURE_GIT && echo "- 配置Git"
-                    $INSTALL_VSCODE_EXT && echo "- 安装VS Code扩展"
-                else
-                    # 备用方式：尝试作为shell脚本解析
-                    echo "警告: 使用备用方式读取状态文件"
-                    source "$STATUS_FILE"
-                    echo "已加载状态: INSTALL_XCODE=$INSTALL_XCODE, INSTALL_HOMEBREW=$INSTALL_HOMEBREW..."
+                # 获取上次安装的状态信息
+                if [[ -f "$STATUS_DIR/last_step" ]]; then
+                    LAST_STEP=$(cat "$STATUS_DIR/last_step")
+                    LAST_TIME=$(cat "$STATUS_DIR/last_time" 2>/dev/null || echo "未知时间")
+                    echo "上次安装于 $LAST_TIME 中断在步骤: $LAST_STEP"
                 fi
+                
+                # 加载模块完成状态
+                if [[ -f "$STATUS_DIR/xcode_done" ]]; then INSTALL_XCODE=false; fi
+                if [[ -f "$STATUS_DIR/homebrew_done" ]]; then INSTALL_HOMEBREW=false; fi
+                if [[ -f "$STATUS_DIR/devtools_done" ]]; then INSTALL_DEVTOOLS=false; fi
+                if [[ -f "$STATUS_DIR/macos_done" ]]; then CONFIGURE_MACOS=false; fi
+                if [[ -f "$STATUS_DIR/git_done" ]]; then CONFIGURE_GIT=false; fi
+                if [[ -f "$STATUS_DIR/vscode_done" ]]; then INSTALL_VSCODE_EXT=false; fi
+                
+                # 加载用户自定义选项
+                if [[ -f "$STATUS_DIR/brew_params" ]]; then
+                    BREW_PARAMS=$(cat "$STATUS_DIR/brew_params")
+                fi
+                if [[ -f "$STATUS_DIR/macos_params" ]]; then
+                    MACOS_PARAMS=$(cat "$STATUS_DIR/macos_params")
+                fi
+                
+                echo "将继续以下未完成的步骤:"
+                $INSTALL_XCODE && echo "- 安装Xcode命令行工具"
+                $INSTALL_HOMEBREW && echo "- 安装Homebrew包管理器"
+                $INSTALL_DEVTOOLS && echo "- 安装开发工具和应用程序"
+                $CONFIGURE_MACOS && echo "- 配置macOS系统设置"
+                $CONFIGURE_GIT && echo "- 配置Git"
+                $INSTALL_VSCODE_EXT && echo "- 安装VS Code扩展"
             else
                 echo "未找到上次的安装状态，将从头开始安装"
                 RESUME_MODE=false
@@ -129,101 +106,56 @@ done
 
 # 创建日志目录
 mkdir -p "$LOG_DIR"
+mkdir -p "$STATUS_DIR"
 
-# 初始化状态文件
-init_status_file() {
-    if ensure_jq; then
-        # 创建全新的JSON状态文件
-        cat > "$STATUS_FILE" <<EOL
-{
-  "install_id": "${TIMESTAMP}",
-  "start_time": "$(date +"%Y-%m-%d %H:%M:%S")",
-  "last_update_time": "$(date +"%Y-%m-%d %H:%M:%S")",
-  "last_completed_step": "init",
-  "steps": {
-    "env_check": { "completed": false, "time": "" },
-    "xcode": { "completed": false, "time": "" },
-    "homebrew": { "completed": false, "time": "" },
-    "devtools": { "completed": false, "time": "" },
-    "macos": { "completed": false, "time": "" },
-    "git": { "completed": false, "time": "" },
-    "vscode": { "completed": false, "time": "" }
-  },
-  "user_choices": {
-    "brew_params": "",
-    "macos_params": ""
-  },
-  "system_info": {
-    "os_version": "$(sw_vers -productVersion 2>/dev/null || echo 'unknown')",
-    "cpu_arch": "$(uname -m 2>/dev/null || echo 'unknown')"
-  }
-}
-EOL
-    else
-        # 备用方式：创建shell格式的状态文件
-        echo "#!/bin/bash" > "$STATUS_FILE"
-        echo "# 自动生成的安装状态文件 - $(date)" >> "$STATUS_FILE"
-        echo "INSTALL_XCODE=true" >> "$STATUS_FILE"
-        echo "INSTALL_HOMEBREW=true" >> "$STATUS_FILE"
-        echo "INSTALL_DEVTOOLS=true" >> "$STATUS_FILE"
-        echo "CONFIGURE_MACOS=true" >> "$STATUS_FILE"
-        echo "CONFIGURE_GIT=true" >> "$STATUS_FILE"
-        echo "INSTALL_VSCODE_EXT=true" >> "$STATUS_FILE"
-        echo "BREW_PARAMS=\"\"" >> "$STATUS_FILE"
-        echo "MACOS_PARAMS=\"\"" >> "$STATUS_FILE"
-        echo "LAST_STEP=\"init\"" >> "$STATUS_FILE"
-        echo "TIMESTAMP=\"$(date +"%Y-%m-%d %H:%M:%S")\"" >> "$STATUS_FILE"
-    fi
+# 初始化状态目录
+init_status_dir() {
+    # 清理旧状态文件
+    rm -rf "$STATUS_DIR"/*
+    
+    # 记录初始状态
+    echo "init" > "$STATUS_DIR/last_step"
+    date "+%Y-%m-%d %H:%M:%S" > "$STATUS_DIR/last_time"
+    echo "$(sw_vers -productVersion 2>/dev/null || echo 'unknown')" > "$STATUS_DIR/os_version"
+    echo "$(uname -m 2>/dev/null || echo 'unknown')" > "$STATUS_DIR/cpu_arch"
+    echo "$TIMESTAMP" > "$STATUS_DIR/install_id"
+    date "+%Y-%m-%d %H:%M:%S" > "$STATUS_DIR/start_time"
 }
 
 # 更新安装状态
 update_status() {
     local step=$1
     local completed=$2
-    local additional_data=$3
+    shift 2
+    local params=("$@")
     
-    # 获取当前时间
-    local current_time=$(date +"%Y-%m-%d %H:%M:%S")
+    # 更新最后完成的步骤和时间
+    echo "$step" > "$STATUS_DIR/last_step"
+    date "+%Y-%m-%d %H:%M:%S" > "$STATUS_DIR/last_time"
     
-    if ensure_jq; then
-        # 使用临时文件避免管道问题
-        local temp_file=$(mktemp)
-        
-        # 更新JSON状态文件
-        jq --arg time "$current_time" \
-           --arg step "$step" \
-           --arg completed "$completed" \
-           --arg additional "$additional_data" \
-           '.last_update_time = $time | .last_completed_step = $step | .steps[$step].completed = $completed | .steps[$step].time = $time | if $additional != "" then .user_choices += ($additional | fromjson) else . end' \
-           "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
-    else
-        # 备用方式：更新shell格式的状态文件
-        if [[ "$step" == "INSTALL_XCODE" ]]; then
-            sed -i '' "s/INSTALL_XCODE=.*/INSTALL_XCODE=$completed/" "$STATUS_FILE"
-        elif [[ "$step" == "INSTALL_HOMEBREW" ]]; then
-            sed -i '' "s/INSTALL_HOMEBREW=.*/INSTALL_HOMEBREW=$completed/" "$STATUS_FILE"
-        elif [[ "$step" == "INSTALL_DEVTOOLS" ]]; then
-            sed -i '' "s/INSTALL_DEVTOOLS=.*/INSTALL_DEVTOOLS=$completed/" "$STATUS_FILE"
-        elif [[ "$step" == "CONFIGURE_MACOS" ]]; then
-            sed -i '' "s/CONFIGURE_MACOS=.*/CONFIGURE_MACOS=$completed/" "$STATUS_FILE"
-        elif [[ "$step" == "CONFIGURE_GIT" ]]; then
-            sed -i '' "s/CONFIGURE_GIT=.*/CONFIGURE_GIT=$completed/" "$STATUS_FILE"
-        elif [[ "$step" == "INSTALL_VSCODE_EXT" ]]; then
-            sed -i '' "s/INSTALL_VSCODE_EXT=.*/INSTALL_VSCODE_EXT=$completed/" "$STATUS_FILE"
-        fi
-        
-        if [[ "$additional_data" == *"brew_params"* ]]; then
-            brew_param_value=$(echo "$additional_data" | grep -o '"brew_params":"[^"]*"' | cut -d'"' -f4)
-            sed -i '' "s/BREW_PARAMS=.*/BREW_PARAMS=\"$brew_param_value\"/" "$STATUS_FILE"
-        fi
-        
-        if [[ "$additional_data" == *"macos_params"* ]]; then
-            macos_param_value=$(echo "$additional_data" | grep -o '"macos_params":"[^"]*"' | cut -d'"' -f4)
-            sed -i '' "s/MACOS_PARAMS=.*/MACOS_PARAMS=\"$macos_param_value\"/" "$STATUS_FILE"
-        fi
-        
-        sed -i '' "s/LAST_STEP=.*/LAST_STEP=\"$step\"/" "$STATUS_FILE"
-        sed -i '' "s/TIMESTAMP=.*/TIMESTAMP=\"$(date +"%Y-%m-%d %H:%M:%S")\"/" "$STATUS_FILE"
+    # 如果步骤完成，创建对应的标记文件
+    if [[ "$completed" == "true" ]]; then
+        case "$step" in
+            "env_check") touch "$STATUS_DIR/env_check_done" ;;
+            "xcode") touch "$STATUS_DIR/xcode_done" ;;
+            "homebrew") touch "$STATUS_DIR/homebrew_done" ;;
+            "devtools") 
+                touch "$STATUS_DIR/devtools_done"
+                # 保存brew参数
+                if [[ -n "$BREW_PARAMS" ]]; then
+                    echo "$BREW_PARAMS" > "$STATUS_DIR/brew_params"
+                fi
+                ;;
+            "macos") 
+                touch "$STATUS_DIR/macos_done"
+                # 保存macos参数
+                if [[ -n "$MACOS_PARAMS" ]]; then
+                    echo "$MACOS_PARAMS" > "$STATUS_DIR/macos_params"
+                fi
+                ;;
+            "git") touch "$STATUS_DIR/git_done" ;;
+            "vscode") touch "$STATUS_DIR/vscode_done" ;;
+        esac
     fi
 }
 
@@ -274,17 +206,9 @@ handle_error() {
     echo "错误: 命令失败，退出代码: $exit_code"
     echo "查看日志获取详细信息: $MAIN_LOG"
     
-    # 记录错误状态
-    if ensure_jq; then
-        local temp_file=$(mktemp)
-        jq --arg time "$(date +"%Y-%m-%d %H:%M:%S")" \
-           --arg error "命令失败，退出代码: $exit_code" \
-           '.last_error = $error | .last_error_time = $time' \
-           "$STATUS_FILE" > "$temp_file" && mv "$temp_file" "$STATUS_FILE"
-    else
-        echo "ERROR_CODE=$exit_code" >> "$STATUS_FILE"
-        echo "ERROR_TIME=\"$(date +"%Y-%m-%d %H:%M:%S")\"" >> "$STATUS_FILE"
-    fi
+    # 记录错误信息
+    echo "$exit_code" > "$STATUS_DIR/error_code"
+    date "+%Y-%m-%d %H:%M:%S" > "$STATUS_DIR/error_time"
     
     echo "可以使用 './install.sh --resume' 从上次中断的位置继续安装"
     exit $exit_code
@@ -296,9 +220,9 @@ trap handle_error ERR
 # 初始化日志
 setup_logging
 
-# 如果不是恢复模式，初始化状态文件
+# 如果不是恢复模式，初始化状态目录
 if ! $RESUME_MODE; then
-    init_status_file
+    init_status_dir
 fi
 
 # 显示欢迎信息
@@ -314,6 +238,8 @@ if ! $SKIP_ENV_CHECK; then
         echo "安装已取消"
         exit 0
     fi
+    
+    update_status "env_check" "true"
 fi
 
 # 确认安装计划
@@ -346,7 +272,7 @@ if $INSTALL_XCODE; then
         read -n 1
     fi
     
-    update_status "INSTALL_XCODE" "true"
+    update_status "xcode" "true"
 fi
 
 # 检查是否已安装Homebrew
@@ -367,7 +293,7 @@ if $INSTALL_HOMEBREW; then
         fi
     fi
     
-    update_status "INSTALL_HOMEBREW" "true"
+    update_status "homebrew" "true"
 fi
 
 # 运行Homebrew必备软件安装脚本
@@ -375,7 +301,6 @@ if $INSTALL_DEVTOOLS; then
     show_status "安装开发工具"
     
     # 检查用户是否想要自定义安装
-    BREW_PARAMS=""
     if ! $SKIP_CONFIRMATION; then
         if confirm "是否要自定义开发工具安装 (否则将安装所有推荐工具)?"; then
             read -p "跳过核心命令行工具? [y/N] " skip_core
@@ -401,7 +326,7 @@ if $INSTALL_DEVTOOLS; then
     # 运行Homebrew安装脚本
     bash "$SCRIPT_DIR/brew-essentials.sh" $BREW_PARAMS
     
-    update_status "INSTALL_DEVTOOLS" "true" "{\"brew_params\":\"$BREW_PARAMS\"}"
+    update_status "devtools" "true"
 fi
 
 # 运行macOS系统设置脚本
@@ -409,7 +334,6 @@ if $CONFIGURE_MACOS; then
     show_status "配置macOS系统设置"
     
     # 检查用户是否想要自定义系统设置
-    MACOS_PARAMS=""
     if ! $SKIP_CONFIRMATION; then
         if confirm "是否要自定义macOS系统设置 (否则将应用所有推荐设置)?"; then
             read -p "跳过UI/UX设置? [y/N] " skip_ui
@@ -438,14 +362,14 @@ if $CONFIGURE_MACOS; then
     # 运行macOS设置脚本
     bash "$SCRIPT_DIR/macos-defaults.sh" $MACOS_PARAMS
     
-    update_status "CONFIGURE_MACOS" "true" "{\"macos_params\":\"$MACOS_PARAMS\"}"
+    update_status "macos" "true"
 fi
 
 # 运行共享Git配置脚本
 if $CONFIGURE_GIT; then
     show_status "配置Git"
     bash "$REPO_ROOT/common/git-config.sh"
-    update_status "CONFIGURE_GIT" "true"
+    update_status "git" "true"
 fi
 
 # 安装VS Code扩展
@@ -459,7 +383,7 @@ if $INSTALL_VSCODE_EXT; then
         echo "VS Code未安装或不在PATH中，跳过扩展安装"
     fi
     
-    update_status "INSTALL_VSCODE_EXT" "true"
+    update_status "vscode" "true"
 fi
 
 show_status "Mac开发环境设置完成"
