@@ -19,8 +19,6 @@ INSTALL_XCODE=true
 INSTALL_HOMEBREW=true
 INSTALL_DEVTOOLS=true
 CONFIGURE_MACOS=true
-CONFIGURE_GIT=true
-INSTALL_VSCODE_EXT=true
 VERBOSE=false
 SKIP_CONFIRMATION=false
 SKIP_ENV_CHECK=false
@@ -37,8 +35,6 @@ while [[ "$#" -gt 0 ]]; do
         --no-homebrew) INSTALL_HOMEBREW=false ;;
         --no-devtools) INSTALL_DEVTOOLS=false ;;
         --no-macos) CONFIGURE_MACOS=false ;;
-        --no-git) CONFIGURE_GIT=false ;;
-        --no-vscode) INSTALL_VSCODE_EXT=false ;;
         --config=*) CONFIG_FILE="${1#*=}" ;;
         --verbose) VERBOSE=true ;;
         --yes) SKIP_CONFIRMATION=true ;;
@@ -50,13 +46,10 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --no-homebrew     不安装Homebrew"
             echo "  --no-devtools     不安装开发工具"
             echo "  --no-macos        不配置macOS系统设置"
-            echo "  --no-git          不配置Git"
-            echo "  --no-vscode       不安装VS Code扩展"
             echo "  --config=文件     指定配置文件路径"
             echo "  --verbose         显示详细输出"
             echo "  --yes             跳过所有确认提示"
             echo "  --no-env-check    跳过环境检查"
-            echo "  --resume          从上次中断的位置继续"
             exit 0
             ;;
         --resume)
@@ -76,8 +69,6 @@ while [[ "$#" -gt 0 ]]; do
                 if [[ -f "$STATUS_DIR/homebrew_done" ]]; then INSTALL_HOMEBREW=false; fi
                 if [[ -f "$STATUS_DIR/devtools_done" ]]; then INSTALL_DEVTOOLS=false; fi
                 if [[ -f "$STATUS_DIR/macos_done" ]]; then CONFIGURE_MACOS=false; fi
-                if [[ -f "$STATUS_DIR/git_done" ]]; then CONFIGURE_GIT=false; fi
-                if [[ -f "$STATUS_DIR/vscode_done" ]]; then INSTALL_VSCODE_EXT=false; fi
                 
                 # 加载用户自定义选项
                 if [[ -f "$STATUS_DIR/brew_params" ]]; then
@@ -92,8 +83,6 @@ while [[ "$#" -gt 0 ]]; do
                 $INSTALL_HOMEBREW && echo "- 安装Homebrew包管理器"
                 $INSTALL_DEVTOOLS && echo "- 安装开发工具和应用程序"
                 $CONFIGURE_MACOS && echo "- 配置macOS系统设置"
-                $CONFIGURE_GIT && echo "- 配置Git"
-                $INSTALL_VSCODE_EXT && echo "- 安装VS Code扩展"
             else
                 echo "未找到上次的安装状态，将从头开始安装"
                 RESUME_MODE=false
@@ -153,8 +142,6 @@ update_status() {
                     echo "$MACOS_PARAMS" > "$STATUS_DIR/macos_params"
                 fi
                 ;;
-            "git") touch "$STATUS_DIR/git_done" ;;
-            "vscode") touch "$STATUS_DIR/vscode_done" ;;
         esac
     fi
 }
@@ -249,8 +236,6 @@ if ! $SKIP_CONFIRMATION; then
     $INSTALL_HOMEBREW && echo "- 安装Homebrew包管理器"
     $INSTALL_DEVTOOLS && echo "- 安装开发工具和应用程序"
     $CONFIGURE_MACOS && echo "- 配置macOS系统设置"
-    $CONFIGURE_GIT && echo "- 配置Git"
-    $INSTALL_VSCODE_EXT && echo "- 安装VS Code扩展"
     
     if ! confirm "是否继续安装?"; then
         echo "安装已取消"
@@ -363,27 +348,6 @@ if $CONFIGURE_MACOS; then
     bash "$SCRIPT_DIR/macos-defaults.sh" $MACOS_PARAMS
     
     update_status "macos" "true"
-fi
-
-# 运行共享Git配置脚本
-if $CONFIGURE_GIT; then
-    show_status "配置Git"
-    bash "$REPO_ROOT/common/git-config.sh"
-    update_status "git" "true"
-fi
-
-# 安装VS Code扩展
-if $INSTALL_VSCODE_EXT; then
-    show_status "检查VS Code"
-    
-    if command -v code &>/dev/null; then
-        show_status "安装VS Code扩展"
-        bash "$REPO_ROOT/common/vscode-extensions.sh"
-    else
-        echo "VS Code未安装或不在PATH中，跳过扩展安装"
-    fi
-    
-    update_status "vscode" "true"
 fi
 
 show_status "Mac开发环境设置完成"
