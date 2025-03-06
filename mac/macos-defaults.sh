@@ -17,6 +17,7 @@ CONFIGURE_DOCK=true
 CONFIGURE_TERMINAL=true
 CONFIGURE_DEV=true
 SKIP_CONFIRMATION=false
+AUTO_APPLY_SETTINGS=false
 BACKUP_SETTINGS=true
 
 # 解析命令行参数
@@ -30,6 +31,7 @@ while [[ "$#" -gt 0 ]]; do
         --no-dev) CONFIGURE_DEV=false ;;
         --no-backup) BACKUP_SETTINGS=false ;;
         --yes) SKIP_CONFIRMATION=true ;;
+        --auto-apply) AUTO_APPLY_SETTINGS=true ;;
         --help) 
             echo "用法: ./macos-defaults.sh [选项]"
             echo "选项:"
@@ -41,6 +43,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --no-dev          不配置开发者设置"
             echo "  --no-backup       不备份当前设置"
             echo "  --yes             跳过所有确认提示"
+            echo "  --auto-apply      自动应用设置，但不跳过应用重启确认"
             echo "  --restore         恢复之前备份的设置"
             exit 0
             ;;
@@ -118,7 +121,7 @@ set_default() {
 
 # 请求确认
 confirm() {
-    if $SKIP_CONFIRMATION; then
+    if $SKIP_CONFIRMATION || $AUTO_APPLY_SETTINGS; then
         return 0
     fi
     
@@ -364,13 +367,22 @@ fi
 ###############################################################################
 show_section "应用变更"
 
-if confirm "是否立即重启受影响的应用程序?"; then
+# 应用重启确认不受AUTO_APPLY_SETTINGS影响，只有SKIP_CONFIRMATION才会跳过
+if ! $SKIP_CONFIRMATION; then
+    if confirm "是否立即重启受影响的应用程序?"; then
+        for app in "Dock" "Finder" "Safari" "SystemUIServer" "Terminal" "iTerm" "iTerm2"; do
+            killall "${app}" &> /dev/null || true
+        done
+        echo "已重启受影响的应用程序"
+    else
+        echo "设置已应用，但需要重启应用或系统才能完全生效"
+    fi
+else
+    # 如果设置了完全跳过确认，则自动重启应用
+    echo "自动重启受影响的应用程序..."
     for app in "Dock" "Finder" "Safari" "SystemUIServer" "Terminal" "iTerm" "iTerm2"; do
         killall "${app}" &> /dev/null || true
     done
-    echo "已重启受影响的应用程序"
-else
-    echo "设置已应用，但需要重启应用或系统才能完全生效"
 fi
 
 echo "===== macOS系统设置配置完成 ====="

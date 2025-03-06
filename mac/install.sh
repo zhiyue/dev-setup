@@ -362,12 +362,12 @@ if $CONFIGURE_MACOS; then
             read -p "跳过开发者设置? [y/N] " skip_dev
             [[ "$skip_dev" =~ ^[Yy] ]] && MACOS_PARAMS="$MACOS_PARAMS --no-dev"
         else
-            # 如果不自定义，添加--yes跳过确认
-            MACOS_PARAMS="--yes"
+            # 如果不自定义，添加--auto-apply但不跳过重启确认
+            MACOS_PARAMS="--auto-apply"
         fi
     else
-        # 如果全局跳过确认，也跳过macOS设置中的确认
-        MACOS_PARAMS="--yes"
+        # 如果全局跳过确认，也跳过macOS设置中的确认，但不跳过重启确认
+        MACOS_PARAMS="--auto-apply"
     fi
     
     # 运行macOS设置脚本
