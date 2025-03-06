@@ -85,18 +85,59 @@ read -p "是否查看安装选项？[y/N] " show_options
 if [[ "$show_options" =~ ^[Yy] ]]; then
   ./install.sh --help
   echo ""
-  read -p "请输入安装参数 (直接回车使用默认设置): " install_args
-  # 使用数组和引号确保参数正确传递
-  if [ -n "$install_args" ]; then
-    # 将参数字符串拆分为数组 - 使用更兼容的方式
-    OLD_IFS="$IFS"
-    IFS=' '
-    arg_array=($install_args)
-    IFS="$OLD_IFS"
-    # 使用"${arg_array[@]}"传递所有参数
-    ./install.sh "${arg_array[@]}"
+  
+  # 逐个询问并设置参数
+  install_params=""
+  
+  # 询问是否跳过Xcode Command Line Tools安装
+  read -p "是否跳过Xcode命令行工具安装？[y/N] " skip_xcode
+  [[ "$skip_xcode" =~ ^[Yy] ]] && install_params="$install_params --no-xcode"
+  
+  # 询问是否跳过Homebrew安装
+  read -p "是否跳过Homebrew安装？[y/N] " skip_homebrew
+  [[ "$skip_homebrew" =~ ^[Yy] ]] && install_params="$install_params --no-homebrew"
+  
+  # 询问是否跳过开发工具安装
+  read -p "是否跳过开发工具安装？[y/N] " skip_devtools
+  [[ "$skip_devtools" =~ ^[Yy] ]] && install_params="$install_params --no-devtools"
+  
+  # 询问是否跳过macOS系统设置
+  read -p "是否跳过macOS系统设置？[y/N] " skip_macos
+  [[ "$skip_macos" =~ ^[Yy] ]] && install_params="$install_params --no-macos"
+  
+  # 询问是否显示详细输出
+  read -p "是否显示详细安装输出？[y/N] " verbose
+  [[ "$verbose" =~ ^[Yy] ]] && install_params="$install_params --verbose"
+  
+  # 询问是否跳过所有确认提示
+  read -p "是否跳过所有确认提示？[y/N] " skip_confirmation
+  [[ "$skip_confirmation" =~ ^[Yy] ]] && install_params="$install_params --yes"
+  
+  # 询问是否跳过环境检查
+  read -p "是否跳过环境检查？[y/N] " skip_env_check
+  [[ "$skip_env_check" =~ ^[Yy] ]] && install_params="$install_params --no-env-check"
+  
+  echo ""
+  echo "将使用以下参数进行安装: $install_params"
+  read -p "是否继续？[Y/n] " continue_install
+  
+  if [[ ! "$continue_install" =~ ^[Nn] ]]; then
+    if [ -n "$install_params" ]; then
+      # 将参数字符串拆分为数组 - 使用更兼容的方式
+      OLD_IFS="$IFS"
+      IFS=' '
+      param_array=($install_params)
+      IFS="$OLD_IFS"
+      # 使用"${param_array[@]}"传递所有参数
+      ./install.sh "${param_array[@]}"
+    else
+      # 直接运行安装脚本
+      ./install.sh
+    fi
   else
-    ./install.sh
+    echo "安装已取消"
+    cleanup
+    exit 0
   fi
 else
   # 直接运行安装脚本
