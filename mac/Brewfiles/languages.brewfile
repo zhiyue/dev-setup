@@ -1,0 +1,12 @@
+# 开发语言和工具
+brew "python@3.10"
+brew "python@3.11"
+brew "node"
+brew "nvm"
+brew "go"
+brew "cmake"
+brew "docker"
+brew "docker-compose"
+brew "kubectl"
+brew "awscli"
+brew "terraform"

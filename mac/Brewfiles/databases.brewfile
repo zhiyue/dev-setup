@@ -1,0 +1,5 @@
+# 数据库工具
+brew "mysql"
+brew "postgresql"
+brew "redis"
+brew "mongodb-community"

@@ -1,9 +1,11 @@
 #!/bin/bash
 # brew-essentials.sh - 通过Homebrew安装开发必备工具
-# 包含命令行工具、开发语言、应用程序等
+# 使用分类 Brewfile 管理依赖包
 
 # 配置变量
 LOG_FILE="$HOME/brew_install_log.txt"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+BREWFILES_DIR="${SCRIPT_DIR}/Brewfiles"
 INSTALL_CORE=true
 INSTALL_LANGUAGES=true
 INSTALL_DATABASES=true
@@ -39,6 +41,51 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
+# 创建临时组合 Brewfile
+create_combined_brewfile() {
+    local tempfile="${SCRIPT_DIR}/Brewfile.combined.temp"
+    
+    # 开始创建临时组合 Brewfile
+    echo "# 临时组合 Brewfile - 由脚本生成 $(date)" > "$tempfile"
+    
+    # 根据用户选择添加相应的 Brewfile
+    if $INSTALL_CORE && [ -f "${BREWFILES_DIR}/core.brewfile" ]; then
+        echo "# 添加命令行工具..."
+        echo "# ==== 命令行工具 ====" >> "$tempfile"
+        cat "${BREWFILES_DIR}/core.brewfile" >> "$tempfile"
+        echo "" >> "$tempfile"
+    fi
+    
+    if $INSTALL_LANGUAGES && [ -f "${BREWFILES_DIR}/languages.brewfile" ]; then
+        echo "# 添加开发语言和工具..."
+        echo "# ==== 开发语言和工具 ====" >> "$tempfile"
+        cat "${BREWFILES_DIR}/languages.brewfile" >> "$tempfile"
+        echo "" >> "$tempfile"
+    fi
+    
+    if $INSTALL_DATABASES && [ -f "${BREWFILES_DIR}/databases.brewfile" ]; then
+        echo "# 添加数据库工具..."
+        echo "# ==== 数据库工具 ====" >> "$tempfile"
+        cat "${BREWFILES_DIR}/databases.brewfile" >> "$tempfile"
+        echo "" >> "$tempfile"
+    fi
+    
+    if $INSTALL_APPS && [ -f "${BREWFILES_DIR}/apps.brewfile" ]; then
+        echo "# 添加应用程序..."
+        echo "# ==== 应用程序 ====" >> "$tempfile"
+        cat "${BREWFILES_DIR}/apps.brewfile" >> "$tempfile"
+        echo "" >> "$tempfile"
+    fi
+    
+    if $INSTALL_FONTS && [ -f "${BREWFILES_DIR}/fonts.brewfile" ]; then
+        echo "# 添加开发字体..."
+        echo "# ==== 开发字体 ====" >> "$tempfile"
+        cat "${BREWFILES_DIR}/fonts.brewfile" >> "$tempfile"
+    fi
+    
+    echo "$tempfile"
+}
+
 # 设置日志和错误处理
 setup_logging() {
     # 创建新的日志文件
@@ -57,56 +104,6 @@ handle_error() {
 # 设置错误处理
 trap 'handle_error' ERR
 
-# 安装或升级包的函数
-install_or_upgrade() {
-    local package=$1
-    
-    if $SKIP_EXISTING && brew list "$package" &>/dev/null; then
-        echo "包 $package 已安装，正在升级..."
-        brew upgrade "$package" 2>/dev/null || echo "包 $package 已是最新版本"
-    else
-        echo "安装包 $package..."
-        brew install "$package"
-    fi
-}
-
-# 安装或升级cask应用的函数
-install_or_upgrade_cask() {
-    local package=$1
-    
-    if $SKIP_EXISTING && brew list --cask "$package" &>/dev/null; then
-        echo "应用 $package 已安装，正在升级..."
-        brew upgrade --cask "$package" 2>/dev/null || echo "应用 $package 已是最新版本"
-    else
-        echo "安装应用 $package..."
-        brew install --cask "$package"
-    fi
-}
-
-# 并行安装多个包
-install_parallel() {
-    local packages=("$@")
-    local pids=()
-    
-    for package in "${packages[@]}"; do
-        if $FAST_MODE; then
-            # 并行安装
-            (install_or_upgrade "$package") &
-            pids+=($!)
-        else
-            # 串行安装
-            install_or_upgrade "$package"
-        fi
-    done
-    
-    # 等待所有并行进程完成
-    if $FAST_MODE; then
-        for pid in "${pids[@]}"; do
-            wait "$pid"
-        done
-    fi
-}
-
 # 初始化
 setup_logging
 echo "===== 开始安装开发必备工具 ====="
@@ -115,110 +112,29 @@ echo "===== 开始安装开发必备工具 ====="
 echo "更新Homebrew..."
 brew update
 
-# 命令行工具包列表
-CLI_TOOLS=(
-    git
-    wget
-    curl
-    tree
-    jq
-    htop
-    tmux
-    vim
-    neovim
-    ripgrep
-    fd
-    fzf
-    bat
-    exa
-    zsh
-    zsh-completions
-    zsh-syntax-highlighting
-    zsh-autosuggestions
-)
-
-# 开发语言和工具包列表
-DEV_TOOLS=(
-    python@3.10
-    python@3.11
-    node
-    nvm
-    go
-    cmake
-    docker
-    docker-compose
-    kubectl
-    awscli
-    terraform
-)
-
-# 数据库工具包列表
-DB_TOOLS=(
-    mysql
-    postgresql
-    redis
-    mongodb-community
-)
-
-# 应用程序包列表
-APPLICATIONS=(
-    visual-studio-code
-    iterm2
-    docker
-    postman
-    google-chrome
-    firefox
-    slack
-    rectangle
-    alfred
-    stats
-    notion
-    figma
-    jetbrains-toolbox
-)
-
-# 字体包列表
-FONTS=(
-    font-fira-code
-    font-jetbrains-mono
-    font-hack-nerd-font
-    font-source-code-pro
-)
-
-# 安装命令行工具
-if $INSTALL_CORE; then
-    echo "安装命令行工具..."
-    install_parallel "${CLI_TOOLS[@]}"
+# 检查并创建 Brewfiles 目录（如果不存在）
+if [ ! -d "$BREWFILES_DIR" ]; then
+    echo "Brewfiles 目录不存在，创建目录..."
+    mkdir -p "$BREWFILES_DIR"
+    echo "警告: Brewfiles 目录是新创建的，可能需要手动添加 Brewfile 文件"
 fi
 
-# 安装开发语言和工具
-if $INSTALL_LANGUAGES; then
-    echo "安装开发语言和工具..."
-    install_parallel "${DEV_TOOLS[@]}"
+# 生成临时组合 Brewfile
+COMBINED_BREWFILE=$(create_combined_brewfile)
+echo "已生成临时组合 Brewfile: $COMBINED_BREWFILE"
+
+# 使用 Homebrew Bundle 安装所有依赖
+echo "使用 Brewfile 安装依赖..."
+if $SKIP_EXISTING; then
+    # 不重新安装已有的包
+    brew bundle --file="$COMBINED_BREWFILE"
+else
+    # 强制重新安装所有包
+    brew bundle --file="$COMBINED_BREWFILE" --force
 fi
 
-# 安装数据库工具
-if $INSTALL_DATABASES; then
-    echo "安装数据库工具..."
-    install_parallel "${DB_TOOLS[@]}"
-fi
-
-# 安装应用程序
-if $INSTALL_APPS; then
-    echo "通过Homebrew Cask安装应用程序..."
-    for app in "${APPLICATIONS[@]}"; do
-        install_or_upgrade_cask "$app"
-    done
-fi
-
-# 安装开发字体
-if $INSTALL_FONTS; then
-    echo "安装开发字体..."
-    brew tap homebrew/cask-fonts 2>/dev/null || true
-    for font in "${FONTS[@]}"; do
-        install_or_upgrade_cask "$font"
-    done
-fi
+# 清理临时文件
+rm -f "$COMBINED_BREWFILE"
 
 # 清理过时的版本
 echo "清理过时的包版本..."

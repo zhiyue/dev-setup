@@ -1,0 +1,63 @@
+# Brewfile - Mac开发环境必备工具
+# 包含命令行工具、开发语言、应用程序等
+
+# 命令行工具
+brew "git"
+brew "wget"
+brew "curl"
+brew "tree"
+brew "jq"
+brew "htop"
+brew "tmux"
+brew "vim"
+brew "neovim"
+brew "ripgrep"
+brew "fd"
+brew "fzf"
+brew "bat"
+brew "exa"
+brew "zsh"
+brew "zsh-completions"
+brew "zsh-syntax-highlighting"
+brew "zsh-autosuggestions"
+
+# 开发语言和工具
+brew "python@3.10"
+brew "python@3.11"
+brew "node"
+brew "nvm"
+brew "go"
+brew "cmake"
+brew "docker"
+brew "docker-compose"
+brew "kubectl"
+brew "awscli"
+brew "terraform"
+
+# 数据库工具
+brew "mysql"
+brew "postgresql"
+brew "redis"
+brew "mongodb-community"
+
+# 应用程序（cask）
+cask "visual-studio-code"
+cask "iterm2"
+cask "docker"
+cask "postman"
+cask "google-chrome"
+cask "firefox"
+cask "slack"
+cask "rectangle"
+cask "alfred"
+cask "stats"
+cask "notion"
+cask "figma"
+cask "jetbrains-toolbox"
+
+# 开发字体
+tap "homebrew/cask-fonts"
+cask "font-fira-code"
+cask "font-jetbrains-mono"
+cask "font-hack-nerd-font"
+cask "font-source-code-pro"
