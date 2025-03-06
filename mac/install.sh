@@ -152,7 +152,8 @@ setup_logging() {
         exec &> >(tee -a "$MAIN_LOG")
     else
         # 否则只记录到日志，但仍在终端显示关键信息
-        exec &>> "$MAIN_LOG"
+        # 使用更兼容的重定向语法
+        exec > "$MAIN_LOG" 2>&1
     fi
 }
 

@@ -88,8 +88,11 @@ if [[ "$show_options" =~ ^[Yy] ]]; then
   read -p "请输入安装参数 (直接回车使用默认设置): " install_args
   # 使用数组和引号确保参数正确传递
   if [ -n "$install_args" ]; then
-    # 将参数字符串拆分为数组
-    IFS=' ' read -r -a arg_array <<< "$install_args"
+    # 将参数字符串拆分为数组 - 使用更兼容的方式
+    OLD_IFS="$IFS"
+    IFS=' '
+    arg_array=($install_args)
+    IFS="$OLD_IFS"
     # 使用"${arg_array[@]}"传递所有参数
     ./install.sh "${arg_array[@]}"
   else
