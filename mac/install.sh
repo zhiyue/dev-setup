@@ -124,6 +124,7 @@ update_status() {
         case "$step" in
             "env_check") touch "$STATUS_DIR/env_check_done" ;;
             "xcode") touch "$STATUS_DIR/xcode_done" ;;
+            "rosetta") touch "$STATUS_DIR/rosetta_done" ;;
             "homebrew") touch "$STATUS_DIR/homebrew_done" ;;
             "devtools") 
                 touch "$STATUS_DIR/devtools_done"
@@ -256,6 +257,33 @@ if $INSTALL_XCODE; then
     fi
     
     update_status "xcode" "true"
+fi
+
+# 检查并安装Rosetta 2（仅适用于Apple Silicon Mac）
+show_status "检查是否需要安装Rosetta 2"
+
+# 检测是否为Apple Silicon Mac
+if [[ "$(uname -m)" == "arm64" ]]; then
+    echo "检测到Apple Silicon Mac，检查Rosetta 2状态..."
+    
+    # 检查Rosetta 2是否已安装
+    if /usr/bin/pgrep -q oahd; then
+        echo "Rosetta 2已安装"
+    else
+        echo "正在安装Rosetta 2..."
+        # 使用softwareupdate命令安装Rosetta 2，自动同意许可协议
+        /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+        
+        if /usr/bin/pgrep -q oahd; then
+            echo "Rosetta 2安装成功"
+        else
+            echo "警告：Rosetta 2可能未成功安装，某些Intel应用可能无法运行"
+        fi
+    fi
+    
+    update_status "rosetta" "true"
+else
+    echo "检测到Intel Mac，不需要安装Rosetta 2"
 fi
 
 # 检查是否已安装Homebrew
