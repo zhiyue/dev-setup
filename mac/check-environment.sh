@@ -229,25 +229,33 @@ check_installed_tools() {
     log "step" "===== 已安装工具检查 ====="
     
     # 定义要检查的工具列表及其用途说明
-    declare -A tools_desc=(
-        ["git"]="版本控制系统"
-        ["python3"]="Python编程语言"
-        ["node"]="Node.js JavaScript运行时"
-        ["go"]="Go编程语言"
-        ["docker"]="容器平台"
-        ["code"]="Visual Studio Code"
-        ["make"]="构建工具"
-        ["gcc"]="GNU编译器集合"
-        ["java"]="Java运行时"
-    )
+    # 使用普通数组代替关联数组，兼容Bash 3.2
+    tools_list="git python3 node go docker code make gcc java"
+    
+    # 获取工具描述的函数
+    get_tool_desc() {
+        local tool=$1
+        case "$tool" in
+            "git") echo "版本控制系统" ;;
+            "python3") echo "Python编程语言" ;;
+            "node") echo "Node.js JavaScript运行时" ;;
+            "go") echo "Go编程语言" ;;
+            "docker") echo "容器平台" ;;
+            "code") echo "Visual Studio Code" ;;
+            "make") echo "构建工具" ;;
+            "gcc") echo "GNU编译器集合" ;;
+            "java") echo "Java运行时" ;;
+            *) echo "未知工具" ;;
+        esac
+    }
     
     # 检查每个工具
-    for tool in "${!tools_desc[@]}"; do
+    for tool in $tools_list; do
         if [[ "$tool" == "code" && $SKIP_VSCODE == true ]]; then
             continue
         fi
         
-        desc="${tools_desc[$tool]}"
+        desc=$(get_tool_desc "$tool")
         if command -v "$tool" &>/dev/null; then
             # 尝试使用不同的方式获取版本，处理潜在错误
             version=$($tool --version 2>/dev/null | head -1 || echo "未知版本")
@@ -286,22 +294,29 @@ check_vscode_extensions() {
     fi
     
     # 定义常用扩展及其用途
-    declare -A extensions=(
-        ["ms-python.python"]="Python支持"
-        ["dbaeumer.vscode-eslint"]="ESLint支持"
-        ["esbenp.prettier-vscode"]="代码格式化工具"
-        ["ms-azuretools.vscode-docker"]="Docker支持"
-        ["ms-vscode.cpptools"]="C/C++支持"
-        ["golang.go"]="Go语言支持"
-        ["redhat.java"]="Java支持"
-        ["ms-vscode-remote.remote-ssh"]="远程SSH开发"
-    )
+    extensions_list="ms-python.python dbaeumer.vscode-eslint esbenp.prettier-vscode ms-azuretools.vscode-docker ms-vscode.cpptools golang.go redhat.java ms-vscode-remote.remote-ssh"
+    
+    # 获取扩展描述的函数
+    get_ext_desc() {
+        local ext=$1
+        case "$ext" in
+            "ms-python.python") echo "Python支持" ;;
+            "dbaeumer.vscode-eslint") echo "ESLint支持" ;;
+            "esbenp.prettier-vscode") echo "代码格式化工具" ;;
+            "ms-azuretools.vscode-docker") echo "Docker支持" ;;
+            "ms-vscode.cpptools") echo "C/C++支持" ;;
+            "golang.go") echo "Go语言支持" ;;
+            "redhat.java") echo "Java支持" ;;
+            "ms-vscode-remote.remote-ssh") echo "远程SSH开发" ;;
+            *) echo "未知扩展" ;;
+        esac
+    }
     
     # 获取已安装扩展列表 (只调用一次命令)
     installed=$(code --list-extensions 2>/dev/null)
     
-    for ext in "${!extensions[@]}"; do
-        desc="${extensions[$ext]}"
+    for ext in $extensions_list; do
+        desc=$(get_ext_desc "$ext")
         if echo "$installed" | grep -q "$ext"; then
             log "info" "$ext: 已安装 - $desc"
         else
