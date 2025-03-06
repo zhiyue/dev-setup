@@ -1,6 +1,9 @@
 #!/bin/bash
 # macos-defaults.sh - 配置macOS系统默认设置
 # 针对开发环境优化的系统配置
+#
+# 部分设置来源于:
+# https://github.com/holman/dotfiles/blob/master/macos/set-defaults.sh
 
 # 配置变量
 BACKUP_DIR="$HOME/.macos_defaults_backup"
@@ -191,7 +194,10 @@ if $CONFIGURE_UI; then
     set_default "com.apple.LaunchServices" "LSQuarantine" "false" "bool" "禁用应用程序打开确认对话框"
 
     # 默认保存到磁盘(而不是iCloud)
-    set_default "NSGlobalDomain" "NSDocumentSaveNewDocumentsToCloud" "false" "bool" "默认保存到磁盘而非iCloud"
+    # set_default "NSGlobalDomain" "NSDocumentSaveNewDocumentsToCloud" "false" "bool" "默认保存到磁盘而非iCloud"
+    
+    # 禁用按住按键弹出字符面板，改为键盘重复输入
+    set_default "NSGlobalDomain" "ApplePressAndHoldEnabled" "false" "bool" "禁用按住按键弹出字符面板，启用键盘重复"
 fi
 
 ###############################################################################
@@ -233,6 +239,16 @@ if $CONFIGURE_FINDER; then
 
     # 显示/Volumes文件夹
     sudo chflags nohidden /Volumes && echo "显示/Volumes文件夹"
+    
+    # 始终使用Finder的列表视图
+    set_default "com.apple.Finder" "FXPreferredViewStyle" "Nlsv" "string" "始终使用Finder的列表视图"
+    
+    # 在桌面显示外部硬盘和可移动媒体
+    set_default "com.apple.finder" "ShowExternalHardDrivesOnDesktop" "true" "bool" "在桌面显示外部硬盘"
+    set_default "com.apple.finder" "ShowRemovableMediaOnDesktop" "true" "bool" "在桌面显示可移动媒体"
+    
+    # 为所有网络接口启用AirDrop
+    set_default "com.apple.NetworkBrowser" "BrowseAllInterfaces" "1" "int" "为所有网络接口启用AirDrop"
 fi
 
 ###############################################################################
@@ -258,6 +274,10 @@ if $CONFIGURE_DOCK; then
 
     # 不根据最近使用情况自动重新排列空间
     set_default "com.apple.dock" "mru-spaces" "false" "bool" "不自动重排空间"
+    
+    # 设置左下角热角为启动屏幕保护程序
+    set_default "com.apple.dock" "wvous-bl-corner" "5" "int" "设置左下角热角为启动屏幕保护程序"
+    set_default "com.apple.dock" "wvous-bl-modifier" "0" "int" "左下角热角不需要修饰键"
 fi
 
 ###############################################################################
@@ -298,8 +318,12 @@ if $CONFIGURE_DEV; then
     set_default "com.apple.Safari" "IncludeDevelopMenu" "true" "bool" "在Safari中启用开发菜单"
     set_default "com.apple.Safari" "WebKitDeveloperExtrasEnabledPreferenceKey" "true" "bool" "启用WebKit开发者工具"
     set_default "com.apple.Safari" "com.apple.Safari.ContentPageGroupIdentifier.WebKit2DeveloperExtrasEnabled" "true" "bool" "启用WebKit2开发者工具"
-
-    # 为Web视图添加显示Web检查器的上下文菜单项
+    
+    # 隐藏Safari的收藏夹栏
+    set_default "com.apple.Safari.plist" "ShowFavoritesBar" "false" "bool" "隐藏Safari的收藏夹栏"
+    
+    # 额外的Safari开发者设置
+    set_default "com.apple.Safari.SandboxBroker" "ShowDevelopMenu" "true" "bool" "在沙箱浏览器中启用开发菜单"
     set_default "NSGlobalDomain" "WebKitDeveloperExtras" "true" "bool" "为Web视图启用开发者功能"
 
     # 禁用自动大写、智能破折号等
@@ -316,7 +340,7 @@ if $CONFIGURE_DEV; then
     set_default "NSGlobalDomain" "AppleKeyboardUIMode" "3" "int" "启用全键盘控制"
 
     # 加速键盘重复速率
-    set_default "NSGlobalDomain" "KeyRepeat" "2" "int" "加快键盘重复速率"
+    set_default "NSGlobalDomain" "KeyRepeat" "1" "int" "加快键盘重复速率"
     set_default "NSGlobalDomain" "InitialKeyRepeat" "15" "int" "减少键盘重复延迟"
 fi
 

@@ -9,7 +9,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SCRIPT_DIR%/*}"
 LOG_DIR="$HOME/.dev_env_setup_logs"
 MAIN_LOG="$LOG_DIR/setup_$(date +%Y%m%d%H%M%S).log"
-CONFIG_FILE="${REPO_ROOT}/config.yml"
 STATUS_DIR="$LOG_DIR/status"
 STATUS_FILE="$STATUS_DIR/current_status"
 TIMESTAMP="$(date +%Y%m%d%H%M%S)"
@@ -35,7 +34,6 @@ while [[ "$#" -gt 0 ]]; do
         --no-homebrew) INSTALL_HOMEBREW=false ;;
         --no-devtools) INSTALL_DEVTOOLS=false ;;
         --no-macos) CONFIGURE_MACOS=false ;;
-        --config=*) CONFIG_FILE="${1#*=}" ;;
         --verbose) VERBOSE=true ;;
         --yes) SKIP_CONFIRMATION=true ;;
         --no-env-check) SKIP_ENV_CHECK=true ;;
@@ -46,7 +44,6 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --no-homebrew     不安装Homebrew"
             echo "  --no-devtools     不安装开发工具"
             echo "  --no-macos        不配置macOS系统设置"
-            echo "  --config=文件     指定配置文件路径"
             echo "  --verbose         显示详细输出"
             echo "  --yes             跳过所有确认提示"
             echo "  --no-env-check    跳过环境检查"
