@@ -58,7 +58,7 @@ dev-setup负责初始化环境，dotfiles负责个性化配置，两者分工明
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/dev-setup.git
+git clone https://github.com/zhiyue/dev-setup.git
 cd dev-setup/mac
 
 # 运行安装脚本
@@ -69,7 +69,7 @@ cd dev-setup/mac
 
 ```powershell
 # 克隆仓库
-git clone https://github.com/yourusername/dev-setup.git
+git clone https://github.com/zhiyue/dev-setup.git
 cd dev-setup\windows
 
 # 以管理员权限运行PowerShell脚本
