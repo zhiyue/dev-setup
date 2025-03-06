@@ -3,9 +3,7 @@
 ```
 dev-environment/
 ├── README.md
-├── common/                # 跨平台共享脚本
-│   ├── git-config.sh      
-│   └── vscode-extensions.sh
+├── common/                
 ├── mac/                   # Mac特定脚本
 │   ├── install.sh         # Mac主安装脚本
 │   ├── brew-essentials.sh

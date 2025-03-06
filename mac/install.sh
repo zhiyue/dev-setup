@@ -42,17 +42,9 @@ bash "$SCRIPT_DIR/brew-essentials.sh"
 echo "正在配置macOS系统设置..."
 bash "$SCRIPT_DIR/macos-defaults.sh"
 
-# 运行共享Git配置脚本
-echo "正在配置Git..."
-bash "$REPO_ROOT/common/git-config.sh"
-
-# 安装VS Code扩展
-if command -v code &>/dev/null; then
-    echo "正在安装VS Code扩展..."
-    bash "$REPO_ROOT/common/vscode-extensions.sh"
-else
-    echo "VS Code未安装或不在PATH中，跳过扩展安装"
-fi
+echo "正在部署 dotfiles..."
+git clone https://github.com/zhiyue/dotfiles.git ~/dotfiles
+bash ~/dotfiles/install.sh
 
 echo "=== Mac开发环境设置完成 ==="
 echo "建议重启系统以确保所有设置生效"
