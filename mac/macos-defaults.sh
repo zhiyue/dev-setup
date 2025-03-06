@@ -198,6 +198,9 @@ if $CONFIGURE_UI; then
     
     # 禁用按住按键弹出字符面板，改为键盘重复输入
     set_default "NSGlobalDomain" "ApplePressAndHoldEnabled" "false" "bool" "禁用按住按键弹出字符面板，启用键盘重复"
+    
+    # 设置鼠标滚轮方向 (false为传统方向，true为"自然"方向)
+    set_default "NSGlobalDomain" "com.apple.swipescrolldirection" "false" "bool" "设置鼠标滚轮为传统方向（向下滚动时页面向下移动）"
 fi
 
 ###############################################################################
