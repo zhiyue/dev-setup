@@ -86,7 +86,15 @@ if [[ "$show_options" =~ ^[Yy] ]]; then
   ./install.sh --help
   echo ""
   read -p "请输入安装参数 (直接回车使用默认设置): " install_args
-  ./install.sh $install_args
+  # 使用数组和引号确保参数正确传递
+  if [ -n "$install_args" ]; then
+    # 将参数字符串拆分为数组
+    IFS=' ' read -r -a arg_array <<< "$install_args"
+    # 使用"${arg_array[@]}"传递所有参数
+    ./install.sh "${arg_array[@]}"
+  else
+    ./install.sh
+  fi
 else
   # 直接运行安装脚本
   ./install.sh
