@@ -345,6 +345,18 @@ if $CONFIGURE_DEV; then
     # 加速键盘重复速率
     set_default "NSGlobalDomain" "KeyRepeat" "1" "int" "加快键盘重复速率"
     set_default "NSGlobalDomain" "InitialKeyRepeat" "15" "int" "减少键盘重复延迟"
+
+    # 远程登录(SSH)设置
+    if confirm "是否启用远程登录(SSH)？默认不启用"; then
+        echo "正在启用远程登录服务(SSH)..."
+        sudo systemsetup -setremotelogin on &>/dev/null
+        echo "已启用远程登录，现在可以通过SSH连接到此Mac"
+        echo "提示：可在系统设置的'共享'部分查看或修改此设置"
+    else
+        echo "未启用远程登录(SSH)"
+        # 确保远程登录服务已关闭
+        sudo systemsetup -setremotelogin off &>/dev/null
+    fi
 fi
 
 ###############################################################################
