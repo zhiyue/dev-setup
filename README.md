@@ -21,12 +21,29 @@ dev-setup/
 ├── mac/                   # Mac特定脚本
 │   ├── install.sh         # Mac主安装脚本
 │   ├── brew-essentials.sh # Homebrew必备软件安装
-│   └── macos-defaults.sh  # macOS系统设置优化
+│   ├── macos-defaults.sh  # macOS系统设置优化
+│   └── Brewfiles/         # 分类的Homebrew依赖文件
+│       ├── core.brewfile     # 命令行工具
+│       ├── languages.brewfile # 开发语言和工具
+│       ├── databases.brewfile # 数据库工具
+│       ├── apps.brewfile     # 应用程序
+│       └── fonts.brewfile    # 开发字体
 └── windows/               # Windows特定脚本
     ├── install.ps1        # Windows主安装脚本
     ├── chocolatey-setup.ps1  # Chocolatey安装和配置
     └── windows-features.ps1  # Windows功能配置
 ```
+
+## Homebrew包管理
+
+Mac环境下使用Homebrew作为包管理器，我们采用模块化的Brewfile结构：
+
+- **分类管理**：将软件包按功能分为命令行工具、开发语言、数据库、应用程序和字体
+- **灵活安装**：可以选择性地安装特定类别的软件包
+- **易于维护**：每个类别独立一个文件，便于添加或移除软件包
+- **参数化安装**：支持`--no-core`、`--no-apps`等参数跳过特定类别安装
+
+使用`./brew-essentials.sh`脚本时，它会自动根据参数组合相应的Brewfile并执行安装。
 
 ## Dev-Setup与Dotfiles的关系
 
@@ -64,6 +81,9 @@ cd dev-setup/mac
 
 # 运行安装脚本
 ./install.sh
+
+# 也可以仅安装特定类别的软件包
+./brew-essentials.sh --no-apps --no-fonts  # 只安装命令行工具、开发语言和数据库
 ```
 
 ### Windows系统
@@ -76,6 +96,16 @@ cd dev-setup\windows
 # 以管理员权限运行PowerShell脚本
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
+
+## 自定义Brewfile
+
+可以通过编辑`mac/Brewfiles/`目录下的相应文件来自定义要安装的软件包：
+
+1. 编辑`core.brewfile`添加或移除命令行工具
+2. 编辑`languages.brewfile`自定义开发语言和工具
+3. 编辑`databases.brewfile`管理数据库工具
+4. 编辑`apps.brewfile`配置应用程序
+5. 编辑`fonts.brewfile`调整开发字体
 
 ## 贡献指南
 
