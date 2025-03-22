@@ -18,6 +18,7 @@ INSTALL_XCODE=true
 INSTALL_HOMEBREW=true
 INSTALL_DEVTOOLS=true
 CONFIGURE_MACOS=true
+CONFIGURE_1PASSWORD_SSH=false
 VERBOSE=false
 SKIP_CONFIRMATION=false
 SKIP_ENV_CHECK=false
@@ -34,6 +35,7 @@ while [[ "$#" -gt 0 ]]; do
         --no-homebrew) INSTALL_HOMEBREW=false ;;
         --no-devtools) INSTALL_DEVTOOLS=false ;;
         --no-macos) CONFIGURE_MACOS=false ;;
+        --1password-ssh) CONFIGURE_1PASSWORD_SSH=true ;;
         --verbose) VERBOSE=true ;;
         --yes) SKIP_CONFIRMATION=true ;;
         --no-env-check) SKIP_ENV_CHECK=true ;;
@@ -44,6 +46,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --no-homebrew     不安装Homebrew"
             echo "  --no-devtools     不安装开发工具"
             echo "  --no-macos        不配置macOS系统设置"
+            echo "  --1password-ssh   配置1Password SSH代理集成"
             echo "  --verbose         显示详细输出"
             echo "  --yes             跳过所有确认提示"
             echo "  --no-env-check    跳过环境检查"
@@ -66,6 +69,7 @@ while [[ "$#" -gt 0 ]]; do
                 if [[ -f "$STATUS_DIR/homebrew_done" ]]; then INSTALL_HOMEBREW=false; fi
                 if [[ -f "$STATUS_DIR/devtools_done" ]]; then INSTALL_DEVTOOLS=false; fi
                 if [[ -f "$STATUS_DIR/macos_done" ]]; then CONFIGURE_MACOS=false; fi
+                if [[ -f "$STATUS_DIR/1password_ssh_done" ]]; then CONFIGURE_1PASSWORD_SSH=false; fi
                 
                 # 加载用户自定义选项
                 if [[ -f "$STATUS_DIR/brew_params" ]]; then
@@ -80,6 +84,7 @@ while [[ "$#" -gt 0 ]]; do
                 $INSTALL_HOMEBREW && echo "- 安装Homebrew包管理器"
                 $INSTALL_DEVTOOLS && echo "- 安装开发工具和应用程序"
                 $CONFIGURE_MACOS && echo "- 配置macOS系统设置"
+                $CONFIGURE_1PASSWORD_SSH && echo "- 配置1Password SSH代理集成"
             else
                 echo "未找到上次的安装状态，将从头开始安装"
                 RESUME_MODE=false
@@ -140,6 +145,7 @@ update_status() {
                     echo "$MACOS_PARAMS" > "$STATUS_DIR/macos_params"
                 fi
                 ;;
+            "1password_ssh") touch "$STATUS_DIR/1password_ssh_done" ;;
         esac
     fi
 }
@@ -235,6 +241,7 @@ if ! $SKIP_CONFIRMATION; then
     $INSTALL_HOMEBREW && echo "- 安装Homebrew包管理器"
     $INSTALL_DEVTOOLS && echo "- 安装开发工具和应用程序"
     $CONFIGURE_MACOS && echo "- 配置macOS系统设置"
+    $CONFIGURE_1PASSWORD_SSH && echo "- 配置1Password SSH代理集成"
     
     if ! confirm "是否继续安装?"; then
         echo "安装已取消"
@@ -374,6 +381,32 @@ if $CONFIGURE_MACOS; then
     bash "$SCRIPT_DIR/macos-defaults.sh" $MACOS_PARAMS
     
     update_status "macos" "true"
+fi
+
+# 配置1Password SSH代理集成
+if $CONFIGURE_1PASSWORD_SSH; then
+    show_status "配置1Password SSH代理集成"
+    
+    # 检查1Password是否已安装
+    if ! [ -d "/Applications/1Password.app" ]; then
+        echo "警告: 未检测到1Password应用，将跳过SSH代理设置"
+        echo "如需配置，请先安装1Password，然后重新运行此脚本并使用 --1password-ssh 选项"
+    else
+        # 询问是否继续配置
+        if ! $SKIP_CONFIRMATION; then
+            if confirm "是否继续配置1Password SSH代理集成? (需要1Password应用已安装)"; then
+                # 运行1Password SSH代理设置脚本
+                bash "$SCRIPT_DIR/1password-ssh-setup.sh"
+                update_status "1password_ssh" "true"
+            else
+                echo "已跳过1Password SSH代理配置"
+            fi
+        else
+            # 如果全局跳过确认，直接运行脚本
+            bash "$SCRIPT_DIR/1password-ssh-setup.sh"
+            update_status "1password_ssh" "true"
+        fi
+    fi
 fi
 
 show_status "Mac开发环境设置完成"
