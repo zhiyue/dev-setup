@@ -4,3 +4,7 @@ cask "font-fira-code"
 cask "font-jetbrains-mono"
 cask "font-hack-nerd-font"
 cask "font-source-code-pro"
+
+# 中文字体
+cask "font-noto-serif-cjk"
+cask "font-noto-sans-cjk"
