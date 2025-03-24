@@ -12,3 +12,13 @@ cask "stats"
 cask "notion"
 cask "figma"
 cask "jetbrains-toolbox"
+
+# AI 工具
+cask "cursor" # 基于AI的代码编辑器
+cask "trae" 
+cask "raycast" # 具有AI功能的生产力工具
+cask "lm-studio" # 本地运行大语言模型
+cask "chatgpt" # OpenAI的ChatGPT官方客户端
+cask "chatwise"
+cask "cherry-studio"
+cask "
