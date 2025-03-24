@@ -17,3 +17,5 @@ brew "zsh"
 brew "zsh-completions"
 brew "zsh-syntax-highlighting"
 brew "zsh-autosuggestions"
+
+brew "fontconfig" # 字体管理工具

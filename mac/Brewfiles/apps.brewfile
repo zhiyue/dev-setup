@@ -21,4 +21,3 @@ cask "lm-studio" # 本地运行大语言模型
 cask "chatgpt" # OpenAI的ChatGPT官方客户端
 cask "chatwise"
 cask "cherry-studio"
-cask "
