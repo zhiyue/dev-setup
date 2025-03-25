@@ -142,7 +142,9 @@ list_installed_apps() {
 # 格式: mas "应用名称" id=应用ID
 read_appstore_apps() {
     local config_file="$1"
-    declare -gA APPSTORE_APPS=()
+    declare -A APPSTORE_APPS
+    typeset -A APPSTORE_APPS
+    export APPSTORE_APPS
     
     if [ ! -f "$config_file" ]; then
         echo "错误: 找不到App Store应用配置文件: $config_file"
@@ -161,6 +163,7 @@ read_appstore_apps() {
         if [[ "$line" =~ mas[[:space:]]+\"([^\"]+)\"[[:space:]]+id=([0-9]+) ]]; then
             local app_name="${BASH_REMATCH[1]}"
             local app_id="${BASH_REMATCH[2]}"
+            echo "正则匹配结果：应用名称=$app_name，应用ID=$app_id"
             APPSTORE_APPS[$app_id]="$app_name"
             echo "已添加应用: $app_name (ID: $app_id)"
         else
@@ -169,7 +172,14 @@ read_appstore_apps() {
     done < "$config_file"
     
     echo "共读取 ${#APPSTORE_APPS[@]} 个App Store应用"
-    return 0
+    if [ ${#APPSTORE_APPS[@]} -gt 0 ]; then
+        return 0
+    else
+        echo "警告: 没有找到符合格式的应用条目"
+        echo "请确认 $config_file 文件包含有效的应用条目"
+        echo "格式示例: mas \"应用名称\" id=应用ID" 
+        return 1
+    fi
 }
 
 # 显示将要安装的应用
@@ -230,16 +240,8 @@ main() {
     
     # 读取应用列表
     if ! read_appstore_apps "$APPSTORE_CONFIG"; then
-        echo "错误: 无法读取App Store应用列表，退出"
+        echo "错误: 无法读取App Store应用列表或列表为空，退出"
         exit 1
-    fi
-    
-    # 检查应用列表是否为空
-    if [ ${#APPSTORE_APPS[@]} -eq 0 ]; then
-        echo "警告: 应用列表为空，没有找到符合格式的应用条目"
-        echo "请确认 $APPSTORE_CONFIG 文件包含有效的应用条目"
-        echo "格式示例: mas \"应用名称\" id=应用ID"
-        exit 0
     fi
     
     # 处理只列出已安装应用的情况
