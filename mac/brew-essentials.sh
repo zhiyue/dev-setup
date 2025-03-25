@@ -52,39 +52,40 @@ create_combined_brewfile() {
     
     # 根据用户选择添加相应的 Brewfile
     if $INSTALL_CORE && [ -f "${BREWFILES_DIR}/core.brewfile" ]; then
-        echo "# 添加命令行工具..."
+        # 只在函数外输出信息
         echo "# ==== 命令行工具 ====" >> "$tempfile"
         cat "${BREWFILES_DIR}/core.brewfile" >> "$tempfile"
         echo "" >> "$tempfile"
     fi
     
     if $INSTALL_LANGUAGES && [ -f "${BREWFILES_DIR}/languages.brewfile" ]; then
-        echo "# 添加开发语言和工具..."
+        # 只在函数外输出信息
         echo "# ==== 开发语言和工具 ====" >> "$tempfile"
         cat "${BREWFILES_DIR}/languages.brewfile" >> "$tempfile"
         echo "" >> "$tempfile"
     fi
     
     if $INSTALL_DATABASES && [ -f "${BREWFILES_DIR}/databases.brewfile" ]; then
-        echo "# 添加数据库工具..."
+        # 只在函数外输出信息
         echo "# ==== 数据库工具 ====" >> "$tempfile"
         cat "${BREWFILES_DIR}/databases.brewfile" >> "$tempfile"
         echo "" >> "$tempfile"
     fi
     
     if $INSTALL_APPS && [ -f "${BREWFILES_DIR}/apps.brewfile" ]; then
-        echo "# 添加应用程序..."
+        # 只在函数外输出信息
         echo "# ==== 应用程序 ====" >> "$tempfile"
         cat "${BREWFILES_DIR}/apps.brewfile" >> "$tempfile"
         echo "" >> "$tempfile"
     fi
     
     if $INSTALL_FONTS && [ -f "${BREWFILES_DIR}/fonts.brewfile" ]; then
-        echo "# 添加开发字体..."
+        # 只在函数外输出信息
         echo "# ==== 开发字体 ====" >> "$tempfile"
         cat "${BREWFILES_DIR}/fonts.brewfile" >> "$tempfile"
     fi
     
+    # 只输出文件路径
     echo "$tempfile"
 }
 
@@ -122,6 +123,13 @@ if [ ! -d "$BREWFILES_DIR" ]; then
 fi
 
 # 生成临时组合 Brewfile
+echo "正在生成临时组合Brewfile..."
+if $INSTALL_CORE; then echo "添加命令行工具..."; fi
+if $INSTALL_LANGUAGES; then echo "添加开发语言和工具..."; fi
+if $INSTALL_DATABASES; then echo "添加数据库工具..."; fi
+if $INSTALL_APPS; then echo "添加应用程序..."; fi
+if $INSTALL_FONTS; then echo "添加开发字体..."; fi
+
 COMBINED_BREWFILE=$(create_combined_brewfile)
 echo "已生成临时组合 Brewfile: $COMBINED_BREWFILE"
 
