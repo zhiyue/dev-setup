@@ -17,6 +17,7 @@ TIMESTAMP="$(date +%Y%m%d%H%M%S)"
 INSTALL_XCODE=true
 INSTALL_HOMEBREW=true
 INSTALL_DEVTOOLS=true
+INSTALL_APPSTORE=true
 CONFIGURE_MACOS=true
 CONFIGURE_1PASSWORD_SSH=false
 VERBOSE=false
@@ -27,6 +28,7 @@ RESUME_MODE=false
 # 用户选择的参数
 BREW_PARAMS=""
 MACOS_PARAMS=""
+APPSTORE_PARAMS=""
 
 # 支持命令行参数
 while [[ "$#" -gt 0 ]]; do
@@ -35,6 +37,7 @@ while [[ "$#" -gt 0 ]]; do
         --no-homebrew) INSTALL_HOMEBREW=false ;;
         --no-devtools) INSTALL_DEVTOOLS=false ;;
         --no-macos) CONFIGURE_MACOS=false ;;
+        --no-appstore) INSTALL_APPSTORE=false ;;
         --1password-ssh) CONFIGURE_1PASSWORD_SSH=true ;;
         --verbose) VERBOSE=true ;;
         --yes) SKIP_CONFIRMATION=true ;;
@@ -45,6 +48,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --no-xcode        不安装Xcode命令行工具"
             echo "  --no-homebrew     不安装Homebrew"
             echo "  --no-devtools     不安装开发工具"
+            echo "  --no-appstore     不安装App Store应用"
             echo "  --no-macos        不配置macOS系统设置"
             echo "  --1password-ssh   配置1Password SSH代理集成"
             echo "  --verbose         显示详细输出"
@@ -68,6 +72,7 @@ while [[ "$#" -gt 0 ]]; do
                 if [[ -f "$STATUS_DIR/xcode_done" ]]; then INSTALL_XCODE=false; fi
                 if [[ -f "$STATUS_DIR/homebrew_done" ]]; then INSTALL_HOMEBREW=false; fi
                 if [[ -f "$STATUS_DIR/devtools_done" ]]; then INSTALL_DEVTOOLS=false; fi
+                if [[ -f "$STATUS_DIR/appstore_done" ]]; then INSTALL_APPSTORE=false; fi
                 if [[ -f "$STATUS_DIR/macos_done" ]]; then CONFIGURE_MACOS=false; fi
                 if [[ -f "$STATUS_DIR/1password_ssh_done" ]]; then CONFIGURE_1PASSWORD_SSH=false; fi
                 
@@ -78,11 +83,15 @@ while [[ "$#" -gt 0 ]]; do
                 if [[ -f "$STATUS_DIR/macos_params" ]]; then
                     MACOS_PARAMS=$(cat "$STATUS_DIR/macos_params")
                 fi
+                if [[ -f "$STATUS_DIR/appstore_params" ]]; then
+                    APPSTORE_PARAMS=$(cat "$STATUS_DIR/appstore_params")
+                fi
                 
                 echo "将继续以下未完成的步骤:"
                 $INSTALL_XCODE && echo "- 安装Xcode命令行工具"
                 $INSTALL_HOMEBREW && echo "- 安装Homebrew包管理器"
                 $INSTALL_DEVTOOLS && echo "- 安装开发工具和应用程序"
+                $INSTALL_APPSTORE && echo "- 安装App Store应用"
                 $CONFIGURE_MACOS && echo "- 配置macOS系统设置"
                 $CONFIGURE_1PASSWORD_SSH && echo "- 配置1Password SSH代理集成"
             else
@@ -136,6 +145,13 @@ update_status() {
                 # 保存brew参数
                 if [[ -n "$BREW_PARAMS" ]]; then
                     echo "$BREW_PARAMS" > "$STATUS_DIR/brew_params"
+                fi
+                ;;
+            "appstore") 
+                touch "$STATUS_DIR/appstore_done"
+                # 保存appstore参数
+                if [[ -n "$APPSTORE_PARAMS" ]]; then
+                    echo "$APPSTORE_PARAMS" > "$STATUS_DIR/appstore_params"
                 fi
                 ;;
             "macos") 
@@ -240,6 +256,7 @@ if ! $SKIP_CONFIRMATION; then
     $INSTALL_XCODE && echo "- 安装Xcode命令行工具"
     $INSTALL_HOMEBREW && echo "- 安装Homebrew包管理器"
     $INSTALL_DEVTOOLS && echo "- 安装开发工具和应用程序"
+    $INSTALL_APPSTORE && echo "- 安装App Store应用"
     $CONFIGURE_MACOS && echo "- 配置macOS系统设置"
     $CONFIGURE_1PASSWORD_SSH && echo "- 配置1Password SSH代理集成"
     
@@ -345,6 +362,34 @@ if $INSTALL_DEVTOOLS; then
     bash "$SCRIPT_DIR/brew-essentials.sh" $BREW_PARAMS
     
     update_status "devtools" "true"
+fi
+
+# 安装App Store应用
+if $INSTALL_APPSTORE; then
+    show_status "安装App Store应用"
+    
+    # 检查用户是否想要自定义安装
+    if ! $SKIP_CONFIRMATION; then
+        if confirm "是否要自定义App Store应用安装 (否则将安装所有推荐应用)?"; then
+            read -p "是否仅执行App Store登录? [y/N] " sign_in_only
+            [[ "$sign_in_only" =~ ^[Yy] ]] && APPSTORE_PARAMS="$APPSTORE_PARAMS --sign-in-only"
+            
+            read -p "是否仅显示应用列表而不安装? [y/N] " show_only
+            [[ "$show_only" =~ ^[Yy] ]] && APPSTORE_PARAMS="$APPSTORE_PARAMS --show-only"
+        fi
+    else
+        # 如果全局跳过确认，也跳过App Store安装中的确认
+        APPSTORE_PARAMS="--auto-confirm"
+    fi
+    
+    # 运行App Store应用安装脚本
+    bash "$SCRIPT_DIR/appstore-apps.sh" $APPSTORE_PARAMS
+    
+    # 保存参数并更新状态
+    if [[ -n "$APPSTORE_PARAMS" ]]; then
+        echo "$APPSTORE_PARAMS" > "$STATUS_DIR/appstore_params"
+    fi
+    update_status "appstore" "true"
 fi
 
 # 运行macOS系统设置脚本

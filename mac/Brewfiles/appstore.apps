@@ -1,0 +1,5 @@
+# App Store应用列表
+# 格式: mas "应用名称" id=应用ID
+
+mas "bob" id=1630034110
+
