@@ -165,7 +165,7 @@ read_appstore_apps() {
     if [ ! -f "$config_file" ]; then
         echo "错误: 找不到App Store应用配置文件: $config_file"
         return 1
-    }
+    fi
     
     echo "从配置文件读取App Store应用列表: $config_file"
     
