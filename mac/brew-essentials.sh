@@ -13,6 +13,7 @@ INSTALL_APPS=true
 INSTALL_FONTS=true
 SKIP_EXISTING=true
 FAST_MODE=false # 并行安装模式
+FAILED_PACKAGES=() # 存储安装失败的包
 
 # 解析命令行参数
 while [[ "$#" -gt 0 ]]; do
@@ -41,54 +42,6 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# 创建临时组合 Brewfile
-create_combined_brewfile() {
-    # 使用绝对路径和更简单的临时文件名
-    local tempdir=$(mktemp -d)
-    local tempfile="${tempdir}/Brewfile.combined"
-    
-    # 开始创建临时组合 Brewfile
-    echo "# 临时组合 Brewfile - 由脚本生成 $(date)" > "$tempfile"
-    
-    # 根据用户选择添加相应的 Brewfile
-    if $INSTALL_CORE && [ -f "${BREWFILES_DIR}/core.brewfile" ]; then
-        # 只在函数外输出信息
-        echo "# ==== 命令行工具 ====" >> "$tempfile"
-        cat "${BREWFILES_DIR}/core.brewfile" >> "$tempfile"
-        echo "" >> "$tempfile"
-    fi
-    
-    if $INSTALL_LANGUAGES && [ -f "${BREWFILES_DIR}/languages.brewfile" ]; then
-        # 只在函数外输出信息
-        echo "# ==== 开发语言和工具 ====" >> "$tempfile"
-        cat "${BREWFILES_DIR}/languages.brewfile" >> "$tempfile"
-        echo "" >> "$tempfile"
-    fi
-    
-    if $INSTALL_DATABASES && [ -f "${BREWFILES_DIR}/databases.brewfile" ]; then
-        # 只在函数外输出信息
-        echo "# ==== 数据库工具 ====" >> "$tempfile"
-        cat "${BREWFILES_DIR}/databases.brewfile" >> "$tempfile"
-        echo "" >> "$tempfile"
-    fi
-    
-    if $INSTALL_APPS && [ -f "${BREWFILES_DIR}/apps.brewfile" ]; then
-        # 只在函数外输出信息
-        echo "# ==== 应用程序 ====" >> "$tempfile"
-        cat "${BREWFILES_DIR}/apps.brewfile" >> "$tempfile"
-        echo "" >> "$tempfile"
-    fi
-    
-    if $INSTALL_FONTS && [ -f "${BREWFILES_DIR}/fonts.brewfile" ]; then
-        # 只在函数外输出信息
-        echo "# ==== 开发字体 ====" >> "$tempfile"
-        cat "${BREWFILES_DIR}/fonts.brewfile" >> "$tempfile"
-    fi
-    
-    # 只输出文件路径
-    echo "$tempfile"
-}
-
 # 设置日志和错误处理
 setup_logging() {
     # 创建新的日志文件
@@ -99,13 +52,109 @@ setup_logging() {
 
 # 错误处理函数
 handle_error() {
-    echo "错误: 命令失败，退出代码: $?" | tee -a "$LOG_FILE"
-    echo "查看日志文件获取详细信息: $LOG_FILE"
-    exit 1
+    echo "警告: 命令失败，退出代码: $?" | tee -a "$LOG_FILE"
+    echo "继续执行后续步骤，详情请查看日志文件: $LOG_FILE"
 }
 
-# 设置错误处理
-trap 'handle_error' ERR
+# 带重试功能的命令执行函数（不中断脚本）
+retry_command() {
+    local cmd="$1"
+    local max_attempts=${2:-3}  # 默认最大尝试次数为3
+    local wait_time=${3:-10}    # 默认重试等待时间为10秒
+    local attempt=1
+    local exit_code=0
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        echo "执行命令: $cmd (尝试 $attempt/$max_attempts)"
+        eval "$cmd"
+        exit_code=$?
+        
+        if [[ $exit_code -eq 0 ]]; then
+            echo "命令成功执行!"
+            return 0
+        else
+            echo "命令失败，退出代码: $exit_code"
+            if [[ $attempt -lt $max_attempts ]]; then
+                echo "等待 $wait_time 秒后重试..."
+                sleep $wait_time
+                # 下次等待时间增加50%
+                wait_time=$(( wait_time + wait_time / 2 ))
+                attempt=$((attempt + 1))
+            else
+                echo "已达到最大尝试次数 ($max_attempts)，但将继续执行后续步骤。"
+                return $exit_code
+            fi
+        fi
+    done
+    
+    return $exit_code
+}
+
+# 安装单个Brewfile文件中的包（允许部分失败）
+install_brewfile() {
+    local brewfile="$1"
+    local description="$2"
+    local force_flag="${3:-}"
+    
+    if [ ! -f "$brewfile" ]; then
+        echo "警告: Brewfile不存在: $brewfile，跳过安装"
+        return 1
+    fi
+    
+    echo "===== 安装$description ====="
+    echo "使用Brewfile: $brewfile"
+    
+    # 逐行读取Brewfile并逐个安装包
+    # 跳过注释行和空行
+    while IFS= read -r line; do
+        # 跳过注释行和空行
+        if [[ "$line" =~ ^[[:space:]]*# || -z "${line// /}" ]]; then
+            continue
+        fi
+        
+        # 提取包类型和名称
+        local pkg_type=""
+        local pkg_name=""
+        
+        if [[ "$line" =~ ^tap[[:space:]]+"([^"]+)" ]]; then
+            pkg_type="tap"
+            pkg_name="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^brew[[:space:]]+"([^"]+)" ]]; then
+            pkg_type="brew"
+            pkg_name="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^cask[[:space:]]+"([^"]+)" ]]; then
+            pkg_type="cask"
+            pkg_name="${BASH_REMATCH[1]}"
+        else
+            echo "跳过不支持的格式: $line"
+            continue
+        fi
+        
+        echo "正在安装 $pkg_type: $pkg_name"
+        
+        # 构建安装命令
+        local install_cmd="brew install $pkg_name"
+        if [[ "$pkg_type" == "tap" ]]; then
+            install_cmd="brew tap $pkg_name"
+        elif [[ "$pkg_type" == "cask" ]]; then
+            install_cmd="brew install --cask $pkg_name"
+        fi
+        
+        # 添加force重装参数
+        if [[ -n "$force_flag" ]]; then
+            install_cmd="$install_cmd $force_flag"
+        fi
+        
+        # 尝试安装，如果失败则记录但继续
+        if ! retry_command "$install_cmd" 3 10; then
+            echo "警告: 安装 $pkg_type: $pkg_name 失败，将继续安装其他包"
+            FAILED_PACKAGES+=("$pkg_type: $pkg_name")
+        fi
+    done < "$brewfile"
+    
+    echo "===== $description 安装完成 ====="
+    return 0
+}
 
 # 初始化
 setup_logging
@@ -113,7 +162,7 @@ echo "===== 开始安装开发必备工具 ====="
 
 # 确保使用最新版本的Homebrew
 echo "更新Homebrew..."
-brew update
+retry_command "brew update" 3 10
 
 # 检查并创建 Brewfiles 目录（如果不存在）
 if [ ! -d "$BREWFILES_DIR" ]; then
@@ -122,45 +171,50 @@ if [ ! -d "$BREWFILES_DIR" ]; then
     echo "警告: Brewfiles 目录是新创建的，可能需要手动添加 Brewfile 文件"
 fi
 
-# 生成临时组合 Brewfile
-echo "正在生成临时组合Brewfile..."
-if $INSTALL_CORE; then echo "添加命令行工具..."; fi
-if $INSTALL_LANGUAGES; then echo "添加开发语言和工具..."; fi
-if $INSTALL_DATABASES; then echo "添加数据库工具..."; fi
-if $INSTALL_APPS; then echo "添加应用程序..."; fi
-if $INSTALL_FONTS; then echo "添加开发字体..."; fi
-
-COMBINED_BREWFILE=$(create_combined_brewfile)
-echo "已生成临时组合 Brewfile: $COMBINED_BREWFILE"
-
-# 检查Brewfile是否存在
-if [ ! -f "$COMBINED_BREWFILE" ]; then
-    echo "错误: 无法找到生成的Brewfile: $COMBINED_BREWFILE"
-    exit 1
+# 安装各类包
+force_flag=""
+if ! $SKIP_EXISTING; then
+    force_flag="--force"
 fi
 
-echo "检查Brewfile权限..."
-ls -la "$COMBINED_BREWFILE"
-
-# 使用 Homebrew Bundle 安装所有依赖
-echo "使用 Brewfile 安装依赖..."
-if $SKIP_EXISTING; then
-    # 不重新安装已有的包
-    brew bundle --file="$COMBINED_BREWFILE"
-else
-    # 强制重新安装所有包
-    brew bundle --file="$COMBINED_BREWFILE" --force
+if $INSTALL_CORE && [ -f "${BREWFILES_DIR}/core.brewfile" ]; then
+    install_brewfile "${BREWFILES_DIR}/core.brewfile" "核心命令行工具" "$force_flag"
 fi
 
-# 清理临时文件
-rm -rf "$(dirname "$COMBINED_BREWFILE")"
+if $INSTALL_LANGUAGES && [ -f "${BREWFILES_DIR}/languages.brewfile" ]; then
+    install_brewfile "${BREWFILES_DIR}/languages.brewfile" "开发语言和工具" "$force_flag"
+fi
+
+if $INSTALL_DATABASES && [ -f "${BREWFILES_DIR}/databases.brewfile" ]; then
+    install_brewfile "${BREWFILES_DIR}/databases.brewfile" "数据库工具" "$force_flag"
+fi
+
+if $INSTALL_APPS && [ -f "${BREWFILES_DIR}/apps.brewfile" ]; then
+    install_brewfile "${BREWFILES_DIR}/apps.brewfile" "应用程序" "$force_flag"
+fi
+
+if $INSTALL_FONTS && [ -f "${BREWFILES_DIR}/fonts.brewfile" ]; then
+    install_brewfile "${BREWFILES_DIR}/fonts.brewfile" "开发字体" "$force_flag"
+fi
 
 # 清理过时的版本
 echo "清理过时的包版本..."
-brew cleanup
+retry_command "brew cleanup" 3 5
 
+# 显示安装结果摘要
 echo "===== 开发必备工具安装完成 ====="
-
-# 显示安装的包数量
 echo "已安装 $(brew list | wc -l | xargs) 个包"
+
+# 显示失败的包列表
+if [ ${#FAILED_PACKAGES[@]} -gt 0 ]; then
+    echo "===== 安装失败的包 ====="
+    for pkg in "${FAILED_PACKAGES[@]}"; do
+        echo "- $pkg"
+    done
+    echo "你可以稍后尝试手动安装这些包"
+    echo "总计: ${#FAILED_PACKAGES[@]} 个包安装失败"
+else
+    echo "所有包安装成功！"
+fi
+
 echo "详细安装日志保存在: $LOG_FILE"
