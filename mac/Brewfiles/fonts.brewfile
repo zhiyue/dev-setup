@@ -6,6 +6,7 @@ cask "font-hack-nerd-font"
 cask "font-source-code-pro"
 cask "font-intone-mono-nerd-font"
 cask "font-intel-one-mono"
+cask "font-zed-mono-nerd-font" # https://github.com/zed-industries/zed-fonts
 
 # 中文字体
 cask "font-noto-serif-cjk"
