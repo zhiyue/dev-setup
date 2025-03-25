@@ -43,7 +43,9 @@ done
 
 # 创建临时组合 Brewfile
 create_combined_brewfile() {
-    local tempfile="${SCRIPT_DIR}/Brewfile.combined.temp"
+    # 使用绝对路径和更简单的临时文件名
+    local tempdir=$(mktemp -d)
+    local tempfile="${tempdir}/Brewfile.combined"
     
     # 开始创建临时组合 Brewfile
     echo "# 临时组合 Brewfile - 由脚本生成 $(date)" > "$tempfile"
@@ -123,6 +125,15 @@ fi
 COMBINED_BREWFILE=$(create_combined_brewfile)
 echo "已生成临时组合 Brewfile: $COMBINED_BREWFILE"
 
+# 检查Brewfile是否存在
+if [ ! -f "$COMBINED_BREWFILE" ]; then
+    echo "错误: 无法找到生成的Brewfile: $COMBINED_BREWFILE"
+    exit 1
+fi
+
+echo "检查Brewfile权限..."
+ls -la "$COMBINED_BREWFILE"
+
 # 使用 Homebrew Bundle 安装所有依赖
 echo "使用 Brewfile 安装依赖..."
 if $SKIP_EXISTING; then
@@ -134,7 +145,7 @@ else
 fi
 
 # 清理临时文件
-rm -f "$COMBINED_BREWFILE"
+rm -rf "$(dirname "$COMBINED_BREWFILE")"
 
 # 清理过时的版本
 echo "清理过时的包版本..."
