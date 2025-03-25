@@ -1,5 +1,5 @@
 # 数据库工具
-tap mongodb/brew
+tap "mongodb/brew"
 brew "mysql"
 brew "postgresql"
 brew "redis"
