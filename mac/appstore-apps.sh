@@ -4,10 +4,14 @@
 # 日期：2025-03-25
 
 # 配置变量
-LOG_FILE="$HOME/appstore_install_log.txt"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# 使用与主脚本相同的日志目录
+LOG_DIR="$HOME/.dev_env_setup_logs"
+mkdir -p "$LOG_DIR" 2>/dev/null
+LOG_FILE="$LOG_DIR/appstore_$(date +%Y%m%d%H%M%S).log"
 APPSTORE_CONFIG="${SCRIPT_DIR}/Brewfiles/appstore.apps"
 FAILED_APPS=() # 存储安装失败的应用
+SKIPPED_APPS=() # 存储已安装的应用
 
 # 解析命令行参数
 SKIP_CONFIRMATION=false
@@ -102,52 +106,30 @@ check_appstore_signin() {
 
 # 登录App Store（交互式）
 signin_appstore() {
-    if check_appstore_signin; then
+    # 简单检查一下初始状态，如果已登录就直接返回
+    if mas account &> /dev/null; then
+        echo "已登录App Store: $(mas account)"
         return 0
     fi
     
     echo "======================================"
     echo "需要登录App Store才能安装应用"
-    echo "选项1: 使用图形界面手动登录App Store应用"
-    echo "选项2: 使用命令行提供Apple ID凭据（不推荐）"
+    echo "请打开App Store应用并登录您的Apple ID账户"
     echo "======================================"
     
+    # 打开App Store应用
+    open -a "App Store"
+    
     if ! $SKIP_CONFIRMATION; then
-        read -p "请选择登录方式 [1/2]: " signin_option
-        
-        case $signin_option in
-            1)
-                echo "请打开App Store应用并登录，完成后按任意键继续..."
-                open -a "App Store"
-                read -n 1 -s
-                ;;
-            2)
-                read -p "请输入Apple ID: " apple_id
-                # mas不再提供命令行密码登录方式，因此这里只是演示
-                echo "由于安全原因，mas-cli不再支持命令行密码登录"
-                echo "请打开App Store应用并登录，完成后按任意键继续..."
-                open -a "App Store"
-                read -n 1 -s
-                ;;
-            *)
-                echo "无效的选项，请打开App Store应用并登录，完成后按任意键继续..."
-                open -a "App Store"
-                read -n 1 -s
-                ;;
-        esac
+        echo "完成登录后请按任意键继续..."
+        read -n 1 -s
     else
-        echo "自动模式：请打开App Store应用并确保已登录"
-        open -a "App Store"
-        sleep 5  # 给用户一些时间登录
+        echo "自动模式：请确保登录App Store（等待10秒）..."
+        sleep 10
     fi
     
-    # 再次检查登录状态
-    if check_appstore_signin; then
-        return 0
-    else
-        echo "警告: 似乎仍未登录App Store，某些功能可能不可用"
-        return 1
-    fi
+    echo "继续安装流程..."
+    return 0
 }
 
 # 列出已安装的App Store应用
@@ -204,6 +186,13 @@ install_app() {
     local app_id="$1"
     local app_name="$2"
     
+    # 检查应用是否已安装
+    if mas list | grep -q "^$app_id"; then
+        echo "应用 $app_name (ID: $app_id) 已安装，跳过"
+        SKIPPED_APPS+=("$app_name (ID: $app_id)")
+        return 0
+    fi
+    
     echo "正在安装 $app_name (ID: $app_id)..."
     if ! retry_command "mas install $app_id" 3 15; then
         echo "警告: 安装 $app_name 失败，将继续安装其他应用"
@@ -243,6 +232,14 @@ main() {
     if ! read_appstore_apps "$APPSTORE_CONFIG"; then
         echo "错误: 无法读取App Store应用列表，退出"
         exit 1
+    fi
+    
+    # 检查应用列表是否为空
+    if [ ${#APPSTORE_APPS[@]} -eq 0 ]; then
+        echo "警告: 应用列表为空，没有找到符合格式的应用条目"
+        echo "请确认 $APPSTORE_CONFIG 文件包含有效的应用条目"
+        echo "格式示例: mas \"应用名称\" id=应用ID"
+        exit 0
     fi
     
     # 处理只列出已安装应用的情况
@@ -288,6 +285,15 @@ main() {
     echo "===== App Store应用安装摘要 ====="
     echo "请求安装: ${#APPSTORE_APPS[@]} 个应用"
     
+    # 显示跳过的应用列表
+    if [ ${#SKIPPED_APPS[@]} -gt 0 ]; then
+        echo "===== 已安装的应用(已跳过) ====="
+        for app in "${SKIPPED_APPS[@]}"; do
+            echo "- $app"
+        done
+        echo "总计: ${#SKIPPED_APPS[@]} 个应用已安装"
+    fi
+    
     # 显示失败的应用列表
     if [ ${#FAILED_APPS[@]} -gt 0 ]; then
         echo "===== 安装失败的应用 ====="
@@ -297,7 +303,11 @@ main() {
         echo "你可以稍后尝试手动安装这些应用"
         echo "总计: ${#FAILED_APPS[@]} 个应用安装失败"
     else
-        echo "所有应用安装成功！"
+        if [ ${#SKIPPED_APPS[@]} -eq ${#APPSTORE_APPS[@]} ]; then
+            echo "所有应用已经安装，未执行任何新安装"
+        else
+            echo "所有新应用安装成功！"
+        fi
     fi
     
     echo "详细安装日志保存在: $LOG_FILE"
