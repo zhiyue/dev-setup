@@ -116,13 +116,13 @@ install_brewfile() {
         local pkg_type=""
         local pkg_name=""
         
-        if [[ "$line" =~ ^tap[[:space:]]+"([^"]+)" ]]; then
+        if [[ "$line" =~ ^tap[[:space:]]+\"([^\"]+)\" ]]; then
             pkg_type="tap"
             pkg_name="${BASH_REMATCH[1]}"
-        elif [[ "$line" =~ ^brew[[:space:]]+"([^"]+)" ]]; then
+        elif [[ "$line" =~ ^brew[[:space:]]+\"([^\"]+)\" ]]; then
             pkg_type="brew"
             pkg_name="${BASH_REMATCH[1]}"
-        elif [[ "$line" =~ ^cask[[:space:]]+"([^"]+)" ]]; then
+        elif [[ "$line" =~ ^cask[[:space:]]+\"([^\"]+)\" ]]; then
             pkg_type="cask"
             pkg_name="${BASH_REMATCH[1]}"
         else
